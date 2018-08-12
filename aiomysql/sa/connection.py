@@ -1,6 +1,7 @@
 # ported from:
 # https://github.com/aio-libs/aiopg/blob/master/aiopg/sa/connection.py
 import weakref
+import pymysql
 
 from sqlalchemy.sql import ClauseElement
 from sqlalchemy.sql.dml import UpdateBase
@@ -118,7 +119,11 @@ class SAConnection:
                                             "and execution with parameters")
                 post_processed_params = [compiled.construct_params()]
                 result_map = None
-            await cursor.execute(str(compiled), post_processed_params[0])
+            try:
+                await cursor.execute(str(compiled), post_processed_params[0])
+            except pymysql.err.OperationalError:
+                await self._connection.ping()
+                await cursor.execute(str(compiled), post_processed_params[0])
         else:
             raise exc.ArgumentError("sql statement should be str or "
                                     "SQLAlchemy data "
